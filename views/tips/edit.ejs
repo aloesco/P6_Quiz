@@ -1,0 +1,16 @@
+<h1>
+    Edit Tip:
+</h1>
+
+<form method="post" action="/quizzes/<%= quiz.id %>/tips/<%=tip.id%>?_method=PUT">
+
+    <div class="wideRow">
+        <label for="text" class="itemNarrow">Pista que quiere editar: </label>
+        <input type="text" class="itemWide" id ="text" name="text" value="<%tip.text%>" placeholder= "Escriba la pista" autocomplete="off"/>
+    </div>
+
+    <a href="/goback"><button type="button">Cancelar</button></a>
+
+    <input type="submit" value="Guardar">
+
+</form>
