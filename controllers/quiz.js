@@ -226,59 +226,70 @@ exports.check = (req, res, next) => {
     });
 };
 
-if(req.session.resolved === undefined) {
-        req.session.resolved = [];
-    }
+exports.randomplay = (req, res, next) => {
+    req.session.alreadyPlayed = req.session.alreadyPlayed || [];
+    
+    const score = req.session.alreadyPlayed.length;
 
-    Sequelize.Promise.resolve().then(() => {
+    const whereOpt = {id: {[Sequelize.Op.notIn] : req.session.alreadyPlayed}} ;
 
-        const whereOpt = {"id": {[Sequelize.Op.notIn]:req.session.resolved}};
+    models.quiz.count({where:whereOpt})
 
-    return models.quiz.count({where: whereOpt})
-        .then(count => {
-        let score = req.session.resolved.length;
-    if (count === 0){
-        delete req.session.resolved;
-        res.render('quizzes/random_nomore', {
-            score
-        });
-    }
-    return models.quiz.findAll({
-        where: whereOpt,
-        offset: Math.floor(Math.random()*count),
-        limit: 1
-    })
-        .then(quizzes => {
+   .then(count => {
+       return models.quiz.findAll({
+            where: whereOpt,
+            offset: Math.floor(Math.random()*count),
+            limit:1
+         })
+
+       .then(quizzes => {
             return quizzes[0];
-        });
         })
-        .catch(error => {
-            req.flash('error', 'Error deleting the Quiz: ' + error.message);
-            next(error);
-        });
-    })
-        .then(quiz => {
-            let score = req.session.resolved.length;
-            res.render('quizzes/random_play', {
-                quiz,
-                score
+   })
+
+    .then(quiz => {
+        if(quiz === undefined) {
+            req.session.alreadyPlayed = [];
+            res.render('quizzes/random_nomore', {
+                score: score
             });
-        });
+        } else {
+            res.render('quizzes/random_play', {
+                quiz: quiz,
+                score: score
+            });
+        }
+    })
+
+    .catch(error => next(error));
+
 };
 
 
-exports.randomCheck = (req, res, next) => {
+exports.randomcheck = (req, res, next) => {
+    try{
+    const {quiz, query} = req;
+    req.session.alreadyPlayed = req.session.alreadyPlayed || [];
 
-    const answer = req.query.answer || '';
-    const result = answer.toLowerCase().trim() === req.quiz.answer.toLowerCase().trim();
-    const score = req.session.resolved.length + result;
-    req.session.resolved.push(req.quiz.id);
-    if(result === false) {
-        req.session.resolved = [];
+    const actual_answer = query.answer || "";
+    const right_answer = quiz.answer;
+
+    const result = actual_answer.toLowerCase().trim() === right_answer.toLowerCase().trim();
+
+    if (result){
+        if(req.session.alreadyPlayed.indexOf(req.quiz.id) === -1){ 
+            req.session.alreadyPlayed.push(req.quiz.id);
+        }
+    } 
+
+    const score = req.session.alreadyPlayed.length;
+
+    if(!result){
+        req.session.alreadyPlayed = [];
     }
-    res.render('quizzes/random_result', {
-        result,
-        score,
-        answer
-    });
+
+    res.render('quizzes/random_result', {actual_answer, result, score});
+    } catch (error){
+        next(error);
+    }
 };
